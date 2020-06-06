@@ -33,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	clusterv1alpha1 "github.com/oneinfra/oneinfra/apis/cluster/v1alpha1"
+	etcdv1alpha1 "github.com/oneinfra/oneinfra/apis/etcd/v1alpha1"
 	infrav1alpha1 "github.com/oneinfra/oneinfra/apis/infra/v1alpha1"
 	nodev1alpha1 "github.com/oneinfra/oneinfra/apis/node/v1alpha1"
 	"github.com/oneinfra/oneinfra/controllers"
@@ -52,6 +53,7 @@ func init() {
 	_ = infrav1alpha1.AddToScheme(scheme)
 	_ = clusterv1alpha1.AddToScheme(scheme)
 	_ = nodev1alpha1.AddToScheme(scheme)
+	_ = etcdv1alpha1.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
 

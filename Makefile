@@ -88,7 +88,7 @@ manifests: platform-manifests guest-manifests
 	kustomize build config/nightly > config/generated/nightly.yaml
 
 platform-manifests:
-	./scripts/run.sh controller-gen $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths=./apis/cluster/... paths=./apis/infra/... output:crd:artifacts:config=config/crd/bases
+	./scripts/run.sh controller-gen $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths=./apis/etcd/... paths=./apis/cluster/... paths=./apis/infra/... output:crd:artifacts:config=config/crd/bases
 
 guest-manifests:
 	sh -c 'CRD_OPTIONS=$(CRD_OPTIONS) RUN_EXTRA_OPTS="-e CRD_OPTIONS" ./scripts/run.sh ./scripts/openapi-gen.sh apis/node'
@@ -106,10 +106,10 @@ vet:
 	./scripts/run.sh go vet ./...
 
 # Generate code
-generate: replace-text-placeholders manifests
+generate: manifests
 	controller-gen object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
-generate-all: generate clientsets-generate pipelines
+generate-all: generate replace-text-placeholders clientsets-generate pipelines
 
 replace-text-placeholders: oi-releaser
 	@./scripts/replace-text-placeholders.sh
