@@ -27,8 +27,6 @@ type CertificateAuthorities struct {
 	CertificateSigner *certificates.Certificate
 	Kubelet           *certificates.Certificate
 	KubeletClient     *certificates.Certificate
-	EtcdClient        *certificates.Certificate
-	EtcdPeer          *certificates.Certificate
 }
 
 func newCertificateAuthoritiesFromv1alpha1(certificateAuthorities *clusterv1alpha1.CertificateAuthorities) *CertificateAuthorities {
@@ -37,8 +35,6 @@ func newCertificateAuthoritiesFromv1alpha1(certificateAuthorities *clusterv1alph
 		CertificateSigner: certificates.NewCertificateFromv1alpha1(certificateAuthorities.CertificateSigner),
 		Kubelet:           certificates.NewCertificateFromv1alpha1(certificateAuthorities.Kubelet),
 		KubeletClient:     certificates.NewCertificateFromv1alpha1(certificateAuthorities.KubeletClient),
-		EtcdClient:        certificates.NewCertificateFromv1alpha1(certificateAuthorities.EtcdClient),
-		EtcdPeer:          certificates.NewCertificateFromv1alpha1(certificateAuthorities.EtcdPeer),
 	}
 }
 
@@ -52,7 +48,5 @@ func (certificateAuthorities *CertificateAuthorities) Export() *clusterv1alpha1.
 		CertificateSigner: certificateAuthorities.CertificateSigner.Export(),
 		Kubelet:           certificateAuthorities.Kubelet.Export(),
 		KubeletClient:     certificateAuthorities.KubeletClient.Export(),
-		EtcdClient:        certificateAuthorities.EtcdClient.Export(),
-		EtcdPeer:          certificateAuthorities.EtcdPeer.Export(),
 	}
 }

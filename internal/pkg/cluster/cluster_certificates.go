@@ -31,9 +31,6 @@ func (cluster *Cluster) InitializeCertificatesAndKeys() error {
 	if err := cluster.initializeCertificateAuthorities(); err != nil {
 		return err
 	}
-	if err := cluster.initializeEtcdServerCertificateAuthority(); err != nil {
-		return err
-	}
 	if err := cluster.initializeAPIServerCertificateAuthority(); err != nil {
 		return err
 	}
@@ -71,34 +68,6 @@ func (cluster *Cluster) initializeCertificateAuthorities() error {
 			return err
 		}
 		cluster.CertificateAuthorities.KubeletClient = kubeletClientAuthority
-	}
-	if cluster.CertificateAuthorities.EtcdClient == nil {
-		etcdClientAuthority, err := certificates.NewCertificateAuthority("etcd-client-authority")
-		if err != nil {
-			return err
-		}
-		cluster.CertificateAuthorities.EtcdClient = etcdClientAuthority
-	}
-	if cluster.CertificateAuthorities.EtcdPeer == nil {
-		etcdPeerAuthority, err := certificates.NewCertificateAuthority("etcd-peer-authority")
-		if err != nil {
-			return err
-		}
-		cluster.CertificateAuthorities.EtcdPeer = etcdPeerAuthority
-	}
-	return nil
-}
-
-func (cluster *Cluster) initializeEtcdServerCertificateAuthority() error {
-	if cluster.EtcdServer == nil {
-		cluster.EtcdServer = &EtcdServer{}
-	}
-	if cluster.EtcdServer.CA == nil {
-		etcdServerCA, err := certificates.NewCertificateAuthority("etcd-authority")
-		if err != nil {
-			return err
-		}
-		cluster.EtcdServer.CA = etcdServerCA
 	}
 	return nil
 }

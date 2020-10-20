@@ -61,11 +61,8 @@ type Cluster struct {
 	KubernetesVersion      string
 	ControlPlaneReplicas   int
 	CertificateAuthorities *CertificateAuthorities
-	EtcdServer             *EtcdServer
 	APIServer              *KubeAPIServer
 	ClientCertificates     map[string]*certificates.Certificate
-	StorageClientEndpoints map[string]string
-	StoragePeerEndpoints   map[string]string
 	VPN                    *VPN
 	VPNPeers               VPNPeerMap
 	APIServerEndpoint      string
@@ -134,9 +131,6 @@ func NewClusterFromv1alpha1(cluster *clusterv1alpha1.Cluster) (*Cluster, error) 
 	if cluster.Spec.CertificateAuthorities == nil {
 		cluster.Spec.CertificateAuthorities = &clusterv1alpha1.CertificateAuthorities{}
 	}
-	if cluster.Spec.EtcdServer == nil {
-		cluster.Spec.EtcdServer = &clusterv1alpha1.EtcdServer{}
-	}
 	if cluster.Spec.APIServer == nil {
 		cluster.Spec.APIServer = &clusterv1alpha1.KubeAPIServer{}
 	}
@@ -158,10 +152,7 @@ func NewClusterFromv1alpha1(cluster *clusterv1alpha1.Cluster) (*Cluster, error) 
 		KubernetesVersion:      cluster.Spec.KubernetesVersion,
 		ControlPlaneReplicas:   cluster.Spec.ControlPlaneReplicas,
 		CertificateAuthorities: newCertificateAuthoritiesFromv1alpha1(cluster.Spec.CertificateAuthorities),
-		EtcdServer:             newEtcdServerFromv1alpha1(cluster.Spec.EtcdServer),
 		APIServer:              kubeAPIServer,
-		StorageClientEndpoints: cluster.Status.StorageClientEndpoints,
-		StoragePeerEndpoints:   cluster.Status.StoragePeerEndpoints,
 		VPN:                    newVPNFromv1alpha1(cluster.Spec.VPN),
 		VPNPeers:               newVPNPeersFromv1alpha1(cluster.Status.VPNPeers),
 		APIServerEndpoint:      cluster.Status.APIServerEndpoint,
@@ -220,7 +211,6 @@ func (cluster *Cluster) Export() *clusterv1alpha1.Cluster {
 			KubernetesVersion:      cluster.KubernetesVersion,
 			ControlPlaneReplicas:   cluster.ControlPlaneReplicas,
 			CertificateAuthorities: cluster.CertificateAuthorities.Export(),
-			EtcdServer:             cluster.EtcdServer.Export(),
 			APIServer:              cluster.APIServer.Export(),
 			VPN:                    cluster.VPN.Export(),
 			JoinKey:                cluster.JoinKey.Export(),
@@ -234,13 +224,11 @@ func (cluster *Cluster) Export() *clusterv1alpha1.Cluster {
 			},
 		},
 		Status: clusterv1alpha1.ClusterStatus{
-			StorageClientEndpoints: cluster.StorageClientEndpoints,
-			StoragePeerEndpoints:   cluster.StoragePeerEndpoints,
-			VPNPeers:               cluster.VPNPeers.Export(),
-			APIServerEndpoint:      cluster.APIServerEndpoint,
-			VPNServerEndpoint:      cluster.VPNServerEndpoint,
-			JoinTokens:             cluster.CurrentJoinTokens,
-			Conditions:             cluster.Conditions.Export(),
+			VPNPeers:          cluster.VPNPeers.Export(),
+			APIServerEndpoint: cluster.APIServerEndpoint,
+			VPNServerEndpoint: cluster.VPNServerEndpoint,
+			JoinTokens:        cluster.CurrentJoinTokens,
+			Conditions:        cluster.Conditions.Export(),
 		},
 	}
 	res.Status.ClientCertificates = map[string]commonv1alpha1.Certificate{}

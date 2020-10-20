@@ -113,7 +113,6 @@ func (clusterReconciler *ClusterReconciler) Reconcile(optionalReconcile Optional
 		clusterReconciler.reconcileNamespaces(cluster, &reconcileErrors)
 		clusterReconciler.reconcilePermissions(cluster, &reconcileErrors)
 		clusterReconciler.reconcileJoinTokens(cluster, &reconcileErrors)
-		clusterReconciler.reconcileStorageEndpoints(cluster, &reconcileErrors)
 		clusterReconciler.reconcileKubeProxy(cluster, &reconcileErrors)
 		clusterReconciler.reconcileCoreDNS(cluster, &reconcileErrors)
 		if optionalReconcile.ReconcileNodeJoinRequests {
@@ -213,42 +212,6 @@ func (clusterReconciler *ClusterReconciler) reconcileJoinTokens(cluster *cluster
 		klog.Errorf("failed to reconcile join tokens for cluster %q: %v", cluster.Name, err)
 		reconcileErrors.AddClusterError(cluster.Namespace, cluster.Name, errors.Wrap(err, "failed to reconcile join tokens"))
 	}
-}
-
-func (clusterReconciler *ClusterReconciler) reconcileStorageEndpoints(cluster *clusterapi.Cluster, reconcileErrors *reconciler.ReconcileErrors) {
-	controlPlaneList := clusterReconciler.componentList.WithCluster(cluster.Namespace, cluster.Name).WithRole(componentapi.ControlPlaneRole)
-	if cluster.ControlPlaneReplicas != len(controlPlaneList) {
-		reconcileErrors.AddClusterError(cluster.Namespace, cluster.Name, errors.New("the number of control plane components does not match the number of desired replicas"))
-		return
-	}
-	storagePeerEndpoints := map[string]string{}
-	storageClientEndpoints := map[string]string{}
-	for _, controlPlane := range controlPlaneList {
-		if controlPlane.DeletionTimestamp != nil {
-			continue
-		}
-		hypervisor, exists := clusterReconciler.hypervisorMap[controlPlane.HypervisorName]
-		if !exists {
-			reconcileErrors.AddClusterError(cluster.Namespace, cluster.Name, errors.Errorf("could not find hypervisor for component %s/%s", controlPlane.Namespace, controlPlane.Name))
-			return
-		}
-		etcdPeerHostPort, exists := controlPlane.AllocatedHostPorts[components.EtcdPeerHostPortName]
-		if !exists {
-			reconcileErrors.AddClusterError(cluster.Namespace, cluster.Name, errors.Errorf("could not find etcd peer host port for component %s/%s", controlPlane.Namespace, controlPlane.Name))
-			return
-		}
-		storagePeerURL := url.URL{Scheme: "https", Host: net.JoinHostPort(hypervisor.IPAddress, strconv.Itoa(etcdPeerHostPort))}
-		storagePeerEndpoints[controlPlane.Name] = storagePeerURL.String()
-		etcdClientHostPort, exists := controlPlane.AllocatedHostPorts[components.EtcdClientHostPortName]
-		if !exists {
-			reconcileErrors.AddClusterError(cluster.Namespace, cluster.Name, errors.Errorf("could not find etcd client host port for component %s/%s", controlPlane.Namespace, controlPlane.Name))
-			return
-		}
-		storageClientURL := url.URL{Scheme: "https", Host: net.JoinHostPort(hypervisor.IPAddress, strconv.Itoa(etcdClientHostPort))}
-		storageClientEndpoints[controlPlane.Name] = storageClientURL.String()
-	}
-	cluster.StoragePeerEndpoints = storagePeerEndpoints
-	cluster.StorageClientEndpoints = storageClientEndpoints
 }
 
 func (clusterReconciler *ClusterReconciler) reconcileKubeProxy(cluster *clusterapi.Cluster, reconcileErrors *reconciler.ReconcileErrors) {

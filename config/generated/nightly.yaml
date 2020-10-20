@@ -119,26 +119,6 @@ spec:
                       description: PrivateKey is a PEM encoded private key
                       type: string
                   type: object
-                etcdClient:
-                  description: Certificate represents a Certificate
-                  properties:
-                    certificate:
-                      description: Certificate is a PEM encoded certificate
-                      type: string
-                    privateKey:
-                      description: PrivateKey is a PEM encoded private key
-                      type: string
-                  type: object
-                etcdPeer:
-                  description: Certificate represents a Certificate
-                  properties:
-                    certificate:
-                      description: Certificate is a PEM encoded certificate
-                      type: string
-                    privateKey:
-                      description: PrivateKey is a PEM encoded private key
-                      type: string
-                  type: object
                 kubelet:
                   description: Certificate represents a Certificate
                   properties:
@@ -164,20 +144,6 @@ spec:
               description: The number of control plane replicas this cluster will
                 manage. One control plane replica if not provided.
               type: integer
-            etcdServer:
-              description: EtcdServer represents an etcd server
-              properties:
-                ca:
-                  description: Certificate represents a Certificate
-                  properties:
-                    certificate:
-                      description: Certificate is a PEM encoded certificate
-                      type: string
-                    privateKey:
-                      description: PrivateKey is a PEM encoded private key
-                      type: string
-                  type: object
-              type: object
             joinKey:
               description: KeyPair represents a public/private key pair
               properties:
@@ -272,14 +238,6 @@ spec:
               items:
                 type: string
               type: array
-            storageClientEndpoints:
-              additionalProperties:
-                type: string
-              type: object
-            storagePeerEndpoints:
-              additionalProperties:
-                type: string
-              type: object
             vpnPeers:
               items:
                 description: VPNPeer represents a VPN peer
@@ -503,9 +461,46 @@ spec:
         spec:
           description: EtcdClusterSpec defines the desired state of EtcdCluster
           properties:
-            foo:
-              description: Foo is an example field of EtcdCluster. Edit EtcdCluster_types.go
-                to remove/update
+            ca:
+              description: Certificate represents a Certificate
+              properties:
+                certificate:
+                  description: Certificate is a PEM encoded certificate
+                  type: string
+                privateKey:
+                  description: PrivateKey is a PEM encoded private key
+                  type: string
+              type: object
+            certificateAuthorities:
+              description: CertificateAuthorities represents a set of Certificate
+                Authorities
+              properties:
+                etcdClient:
+                  description: Certificate represents a Certificate
+                  properties:
+                    certificate:
+                      description: Certificate is a PEM encoded certificate
+                      type: string
+                    privateKey:
+                      description: PrivateKey is a PEM encoded private key
+                      type: string
+                  type: object
+                etcdPeer:
+                  description: Certificate represents a Certificate
+                  properties:
+                    certificate:
+                      description: Certificate is a PEM encoded certificate
+                      type: string
+                    privateKey:
+                      description: PrivateKey is a PEM encoded private key
+                      type: string
+                  type: object
+              type: object
+            etcdMembers:
+              description: The number of etcd members this cluster will manage. One
+                etcd replica if not provided.
+              type: integer
+            etcdVersion:
               type: string
           type: object
         status:
@@ -566,11 +561,6 @@ spec:
           type: object
         spec:
           description: EtcdMemberSpec defines the desired state of EtcdMember
-          properties:
-            foo:
-              description: Foo is an example field of EtcdMember. Edit EtcdMember_types.go
-                to remove/update
-              type: string
           type: object
         status:
           description: EtcdMemberStatus defines the observed state of EtcdMember

@@ -34,9 +34,46 @@ spec:
         spec:
           description: EtcdClusterSpec defines the desired state of EtcdCluster
           properties:
-            foo:
-              description: Foo is an example field of EtcdCluster. Edit EtcdCluster_types.go
-                to remove/update
+            ca:
+              description: Certificate represents a Certificate
+              properties:
+                certificate:
+                  description: Certificate is a PEM encoded certificate
+                  type: string
+                privateKey:
+                  description: PrivateKey is a PEM encoded private key
+                  type: string
+              type: object
+            certificateAuthorities:
+              description: CertificateAuthorities represents a set of Certificate
+                Authorities
+              properties:
+                etcdClient:
+                  description: Certificate represents a Certificate
+                  properties:
+                    certificate:
+                      description: Certificate is a PEM encoded certificate
+                      type: string
+                    privateKey:
+                      description: PrivateKey is a PEM encoded private key
+                      type: string
+                  type: object
+                etcdPeer:
+                  description: Certificate represents a Certificate
+                  properties:
+                    certificate:
+                      description: Certificate is a PEM encoded certificate
+                      type: string
+                    privateKey:
+                      description: PrivateKey is a PEM encoded private key
+                      type: string
+                  type: object
+              type: object
+            etcdMembers:
+              description: The number of etcd members this cluster will manage. One
+                etcd replica if not provided.
+              type: integer
+            etcdVersion:
               type: string
           type: object
         status:

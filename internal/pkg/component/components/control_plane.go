@@ -21,13 +21,11 @@ import (
 	"net"
 	"net/url"
 	"strconv"
-	"strings"
 
 	"github.com/pkg/errors"
 	"k8s.io/klog/v2"
 
 	componentapi "github.com/oneinfra/oneinfra/internal/pkg/component"
-	"github.com/oneinfra/oneinfra/internal/pkg/constants"
 	"github.com/oneinfra/oneinfra/internal/pkg/infra"
 	"github.com/oneinfra/oneinfra/internal/pkg/infra/pod"
 	"github.com/oneinfra/oneinfra/internal/pkg/inquirer"
@@ -47,7 +45,7 @@ const (
 )
 
 // ControlPlane represents a complete control plane instance,
-// including: etcd, API server, controller-manager and scheduler
+// including: API server, controller-manager and scheduler
 type ControlPlane struct{}
 
 // PreReconcile pre-reconciles the control plane component
@@ -58,12 +56,6 @@ func (controlPlane *ControlPlane) PreReconcile(inquirer inquirer.ReconcilerInqui
 	}
 	hypervisor := inquirer.Hypervisor()
 	if _, err := component.RequestPort(hypervisor, APIServerHostPortName); err != nil {
-		return err
-	}
-	if _, err := component.RequestPort(hypervisor, EtcdPeerHostPortName); err != nil {
-		return err
-	}
-	if _, err := component.RequestPort(hypervisor, EtcdClientHostPortName); err != nil {
 		return err
 	}
 	return nil
@@ -90,16 +82,11 @@ func (controlPlane *ControlPlane) Reconcile(inquirer inquirer.ReconcilerInquirer
 	hypervisor := inquirer.Hypervisor()
 	cluster := inquirer.Cluster()
 	kubernetesVersion := inquirer.Cluster().KubernetesVersion
-	versionBundle, err := constants.KubernetesVersionBundle(kubernetesVersion)
-	if err != nil {
-		return errors.Errorf("could not retrieve version bundle for version %q", kubernetesVersion)
-	}
 	klog.V(1).Infof("reconciling component %q, present in hypervisor %q, belonging to cluster %q", component.Name, hypervisor.Name, cluster.Name)
 	if err := controlPlane.reconcileInputAndOutputEndpoints(inquirer); err != nil {
 		return err
 	}
-	err = hypervisor.EnsureImages(
-		fmt.Sprintf(etcdImage, versionBundle.EtcdVersion),
+	err := hypervisor.EnsureImages(
 		fmt.Sprintf(kubeAPIServerImage, kubernetesVersion),
 		fmt.Sprintf(kubeControllerManagerImage, kubernetesVersion),
 		fmt.Sprintf(kubeSchedulerImage, kubernetesVersion),
@@ -116,9 +103,6 @@ func (controlPlane *ControlPlane) Reconcile(inquirer inquirer.ReconcilerInquirer
 	}
 	apiserverHostPort, err := component.RequestPort(hypervisor, APIServerHostPortName)
 	if err != nil {
-		return err
-	}
-	if err := controlPlane.runEtcd(inquirer); err != nil {
 		return err
 	}
 	kubeControllerManagerArguments := map[string]string{
@@ -155,7 +139,7 @@ func (controlPlane *ControlPlane) Reconcile(inquirer inquirer.ReconcilerInquirer
 						"insecure-port":                   "0",
 						"advertise-address":               advertiseAddressHost,
 						"secure-port":                     strconv.Itoa(advertiseAddressPort),
-						"etcd-servers":                    strings.Join(controlPlane.etcdClientEndpoints(inquirer), ","),
+						"etcd-servers":                    "",
 						"etcd-cafile":                     componentSecretsPathFile(cluster.Namespace, cluster.Name, component.Name, "etcd-ca.crt"),
 						"etcd-certfile":                   componentSecretsPathFile(cluster.Namespace, cluster.Name, component.Name, "apiserver-etcd-client.crt"),
 						"etcd-keyfile":                    componentSecretsPathFile(cluster.Namespace, cluster.Name, component.Name, "apiserver-etcd-client.key"),
@@ -241,16 +225,6 @@ func (controlPlane *ControlPlane) uploadFiles(inquirer inquirer.ReconcilerInquir
 	cluster := inquirer.Cluster()
 	component := inquirer.Component()
 	hypervisor := inquirer.Hypervisor()
-	etcdAPIServerClientCertificate, err := component.ClientCertificate(
-		cluster.CertificateAuthorities.EtcdClient,
-		"apiserver-etcd-client",
-		fmt.Sprintf("apiserver-etcd-client-%s", component.Name),
-		[]string{cluster.Name},
-		[]string{},
-	)
-	if err != nil {
-		return err
-	}
 	kubeAPIServerExtraSANs, err := controlPlane.kubeAPIServerSANs(inquirer)
 	if err != nil {
 		return err
@@ -293,10 +267,6 @@ func (controlPlane *ControlPlane) uploadFiles(inquirer inquirer.ReconcilerInquir
 		cluster.Name,
 		component.Name,
 		map[string]string{
-			// etcd secrets
-			componentSecretsPathFile(cluster.Namespace, cluster.Name, component.Name, "etcd-ca.crt"):               cluster.EtcdServer.CA.Certificate,
-			componentSecretsPathFile(cluster.Namespace, cluster.Name, component.Name, "apiserver-etcd-client.crt"): etcdAPIServerClientCertificate.Certificate,
-			componentSecretsPathFile(cluster.Namespace, cluster.Name, component.Name, "apiserver-etcd-client.key"): etcdAPIServerClientCertificate.PrivateKey,
 			// API server secrets
 			componentSecretsPathFile(cluster.Namespace, cluster.Name, component.Name, "apiserver-client-ca.crt"):      cluster.CertificateAuthorities.APIServerClient.Certificate,
 			componentSecretsPathFile(cluster.Namespace, cluster.Name, component.Name, "apiserver.crt"):                apiServerCertificate.Certificate,
@@ -369,14 +339,6 @@ func (controlPlane *ControlPlane) ReconcileDeletion(inquirer inquirer.Reconciler
 	if err := controlPlane.stopControlPlane(inquirer); err != nil {
 		return err
 	}
-	if inquirer.Cluster().DeletionTimestamp == nil {
-		if err := controlPlane.removeEtcdMember(inquirer); err != nil {
-			return err
-		}
-	}
-	if err := controlPlane.stopEtcd(inquirer); err != nil {
-		return err
-	}
 	return controlPlane.hostCleanup(inquirer)
 }
 
@@ -391,24 +353,6 @@ func (controlPlane *ControlPlane) hostCleanup(inquirer inquirer.ReconcilerInquir
 		pod.NewPod(
 			fmt.Sprintf("%s-%s-%s-cleanup", cluster.Namespace, cluster.Name, component.Name),
 			[]pod.Container{
-				{
-					Name:    "etcd-cleanup",
-					Image:   infra.ToolingImage,
-					Command: []string{"/bin/sh"},
-					Args: []string{
-						"-c",
-						fmt.Sprintf(
-							"rm -rf %s && ((rmdir %s && rmdir %s && rmdir %s) || true)",
-							subcomponentStoragePath(cluster.Namespace, cluster.Name, component.Name, "etcd"),
-							componentStoragePath(cluster.Namespace, cluster.Name, component.Name),
-							clusterStoragePath(cluster.Namespace, cluster.Name),
-							namespacedClusterStoragePath(cluster.Namespace),
-						),
-					},
-					Mounts: map[string]string{
-						globalStoragePath(): globalStoragePath(),
-					},
-				},
 				{
 					Name:    "secrets-cleanup",
 					Image:   infra.ToolingImage,
